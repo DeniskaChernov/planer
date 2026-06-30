@@ -1,4 +1,4 @@
-import type { AuthUser, PlannerState, UserProfile, WorkspaceInfo } from './types'
+import type { AccessPermissions, AuthUser, PlannerState, UserProfile, WorkspaceInfo } from './types'
 
 async function request<T>(url:string,options?:RequestInit):Promise<T>{
   const response=await fetch(url,{...options,credentials:'include',headers:{'Content-Type':'application/json',...options?.headers}})
@@ -16,5 +16,7 @@ export const api={
   saveProfile:(profile:UserProfile)=>request('/api/profile',{method:'PUT',body:JSON.stringify(profile)}),
   saveAccount:(externalUserId:string)=>request<{ok:true;externalUserId?:string}>('/api/account',{method:'PUT',body:JSON.stringify({externalUserId})}),
   workspace:()=>request<WorkspaceInfo>('/api/workspace'),
+  createInvite:(data:{label:string;permissions:AccessPermissions;projectIds:string[]})=>request<{invite:WorkspaceInfo['invites'][number]}>('/api/workspace/invites',{method:'POST',body:JSON.stringify(data)}),
+  updateMember:(accountId:string,data:{permissions:AccessPermissions;projectIds:string[]})=>request(`/api/workspace/members/${accountId}`,{method:'PUT',body:JSON.stringify(data)}),
   chat:(payload:{message:string;context:string;conversationId?:string})=>request<{answer:string;conversationId:string}>('/api/ai/chat',{method:'POST',body:JSON.stringify(payload)}),
 }

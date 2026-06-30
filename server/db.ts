@@ -39,8 +39,24 @@ export async function initDatabase() {
       account_id UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
       workspace_id UUID NOT NULL REFERENCES planner_workspaces(id) ON DELETE CASCADE,
       role TEXT NOT NULL DEFAULT 'member',
+      permissions JSONB NOT NULL DEFAULT '{}'::jsonb,
+      project_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY(account_id, workspace_id)
+    );
+    ALTER TABLE planner_memberships ADD COLUMN IF NOT EXISTS permissions JSONB NOT NULL DEFAULT '{}'::jsonb;
+    ALTER TABLE planner_memberships ADD COLUMN IF NOT EXISTS project_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
+    CREATE TABLE IF NOT EXISTS planner_invites (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      workspace_id UUID NOT NULL REFERENCES planner_workspaces(id) ON DELETE CASCADE,
+      code TEXT UNIQUE NOT NULL,
+      label TEXT NOT NULL,
+      permissions JSONB NOT NULL DEFAULT '{}'::jsonb,
+      project_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_by UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
+      used_by UUID REFERENCES planner_accounts(id) ON DELETE SET NULL,
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '14 days',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS planner_sessions (
       token_hash TEXT PRIMARY KEY,
@@ -66,5 +82,9 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS planner_sessions_expiry_idx ON planner_sessions(expires_at);
     CREATE UNIQUE INDEX IF NOT EXISTS planner_accounts_external_user_unique ON planner_accounts(external_user_id) WHERE external_user_id IS NOT NULL AND external_user_id <> '';
     CREATE INDEX IF NOT EXISTS messages_conversation_created_idx ON messages(conversation_id, created_at);
+
+    UPDATE planner_workspaces SET planner_state='{"focus":"","projects":[],"decisions":[]}'::jsonb,updated_at=NOW()
+    WHERE jsonb_array_length(COALESCE(planner_state->'projects','[]'::jsonb))=8
+      AND planner_state->'projects' @> '[{"id":"company"},{"id":"platform"},{"id":"ai"},{"id":"business"},{"id":"life"},{"id":"website"},{"id":"brand"},{"id":"marketing"}]'::jsonb;
   `)
 }

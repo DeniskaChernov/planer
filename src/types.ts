@@ -62,14 +62,18 @@ export interface AuthUser {
   externalUserId?: string
   workspaceId: string
   workspaceName: string
-  inviteCode: string
   role: 'owner' | 'member'
+  permissions: AccessPermissions
+  projectIds: string[]
 }
+
+export interface AccessPermissions { viewAll?:boolean; manageProjects?:boolean; manageTasks?:boolean; viewDecisions?:boolean; manageDecisions?:boolean; useAI?:boolean; manageMembers?:boolean }
 
 export interface WorkspaceInfo {
   id: string
   name: string
-  inviteCode: string
   role: string
-  members: { public_id:string; display_name:string; external_user_id?:string; role:string }[]
+  members: { id:string; public_id:string; display_name:string; external_user_id?:string; role:string; permissions:AccessPermissions; project_ids:string[] }[]
+  invites: { id:string; code:string; label:string; permissions:AccessPermissions; project_ids:string[]; expires_at:string }[]
+  projects: {id:string;name:string;color:string}[]
 }
