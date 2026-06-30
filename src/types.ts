@@ -10,6 +10,8 @@ export interface Task {
   deadline?: string
   tags: string[]
   assignee?: string
+  estimate?: number
+  blocked?: boolean
 }
 
 export interface Entry { id: string; title: string; body?: string; createdAt: string }
@@ -20,6 +22,9 @@ export interface Project {
   icon: string
   color: string
   description: string
+  outcome?: string
+  owner?: string
+  status?: 'active'|'paused'|'completed'
   progress: number
   tasks: Task[]
   ideas: Entry[]
@@ -33,6 +38,8 @@ export interface PlannerState {
   decisions: Decision[]
 }
 
+export interface ActivityItem { id:string; action:string; entity_type?:string; entity_id?:string; metadata:{title?:string}; created_at:string; display_name?:string; public_id?:string }
+
 export interface Decision {
   id: string
   title: string
@@ -43,6 +50,13 @@ export interface Decision {
   status: 'captured'|'committed'|'under_review'|'validated'|'reversed'
   createdAt: string
   createdBy?: string
+  projectId?: string
+  reversibility?: 'reversible'|'costly'|'irreversible'
+  assumptions?: string
+  premortem?: string
+  actualOutcome?: string
+  reviewNote?: string
+  reasoningQuality?: 'sound'|'unclear'|'flawed'
 }
 
 export interface UserProfile {

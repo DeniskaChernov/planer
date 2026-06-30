@@ -32,9 +32,11 @@ export async function initDatabase() {
       name TEXT NOT NULL,
       invite_code TEXT UNIQUE NOT NULL,
       planner_state JSONB NOT NULL DEFAULT '{}'::jsonb,
+      state_version INTEGER NOT NULL DEFAULT 1,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE planner_workspaces ADD COLUMN IF NOT EXISTS state_version INTEGER NOT NULL DEFAULT 1;
     CREATE TABLE IF NOT EXISTS planner_memberships (
       account_id UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
       workspace_id UUID NOT NULL REFERENCES planner_workspaces(id) ON DELETE CASCADE,
@@ -56,6 +58,16 @@ export async function initDatabase() {
       created_by UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
       used_by UUID REFERENCES planner_accounts(id) ON DELETE SET NULL,
       expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '14 days',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS planner_activity (
+      id BIGSERIAL PRIMARY KEY,
+      workspace_id UUID NOT NULL REFERENCES planner_workspaces(id) ON DELETE CASCADE,
+      account_id UUID REFERENCES planner_accounts(id) ON DELETE SET NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS planner_sessions (
@@ -82,6 +94,7 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS planner_sessions_expiry_idx ON planner_sessions(expires_at);
     CREATE UNIQUE INDEX IF NOT EXISTS planner_accounts_external_user_unique ON planner_accounts(external_user_id) WHERE external_user_id IS NOT NULL AND external_user_id <> '';
     CREATE INDEX IF NOT EXISTS messages_conversation_created_idx ON messages(conversation_id, created_at);
+    CREATE INDEX IF NOT EXISTS planner_activity_workspace_created_idx ON planner_activity(workspace_id, created_at DESC);
 
     UPDATE planner_workspaces SET planner_state='{"focus":"","projects":[],"decisions":[]}'::jsonb,updated_at=NOW()
     WHERE jsonb_array_length(COALESCE(planner_state->'projects','[]'::jsonb))=8

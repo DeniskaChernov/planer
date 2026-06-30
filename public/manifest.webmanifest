@@ -2,9 +2,13 @@
   "name":"Founder OS Planner",
   "short_name":"Founder OS",
   "description":"Общее операционное пространство семьи и команды",
-  "start_url":"/",
+  "id":"/",
+  "start_url":"/?source=pwa",
+  "scope":"/",
   "display":"standalone",
-  "background_color":"#080a0f",
-  "theme_color":"#080a0f",
+  "orientation":"any",
+  "categories":["productivity","business","lifestyle"],
+  "background_color":"#0a0a0d",
+  "theme_color":"#0a0a0d",
   "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }
