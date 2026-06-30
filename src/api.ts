@@ -14,6 +14,7 @@ export const api={
   bootstrap:(state:PlannerState)=>request<{state:PlannerState;profile:UserProfile;persistence:string;user:AuthUser}>('/api/bootstrap',{method:'POST',body:JSON.stringify({state})}),
   saveState:(state:PlannerState)=>request('/api/state',{method:'PUT',body:JSON.stringify(state)}),
   saveProfile:(profile:UserProfile)=>request('/api/profile',{method:'PUT',body:JSON.stringify(profile)}),
+  saveAccount:(externalUserId:string)=>request<{ok:true;externalUserId?:string}>('/api/account',{method:'PUT',body:JSON.stringify({externalUserId})}),
   workspace:()=>request<WorkspaceInfo>('/api/workspace'),
   chat:(payload:{message:string;context:string;conversationId?:string})=>request<{answer:string;conversationId:string}>('/api/ai/chat',{method:'POST',body:JSON.stringify(payload)}),
 }

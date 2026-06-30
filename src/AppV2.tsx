@@ -4,10 +4,13 @@ import * as I from 'lucide-react'
 import { api } from './api'
 import { defaultProfile, initialState } from './data'
 import type { AuthUser, Entry, PlannerState, Project, Task, TaskStatus, UserProfile, View, WorkspaceInfo } from './types'
+import ProfileBridge from './ProfileBridge'
+import Decisions from './Decisions'
 import './v2.css'
+import './strategy.css'
 
 const nav:{id:View;label:string;icon:React.ComponentType<{size?:number}>}[]=[
-  {id:'dashboard',label:'Сегодня',icon:I.LayoutDashboard},{id:'projects',label:'Проекты',icon:I.Layers3},{id:'calendar',label:'Календарь',icon:I.CalendarDays},{id:'ideas',label:'Идеи',icon:I.Lightbulb},{id:'team',label:'Люди',icon:I.Users},{id:'settings',label:'Профиль',icon:I.UserRound},
+  {id:'dashboard',label:'Сегодня',icon:I.LayoutDashboard},{id:'decisions',label:'Решения',icon:I.BrainCircuit},{id:'projects',label:'Проекты',icon:I.Layers3},{id:'calendar',label:'Календарь',icon:I.CalendarDays},{id:'ideas',label:'Идеи',icon:I.Lightbulb},{id:'team',label:'Люди',icon:I.Users},{id:'settings',label:'Профиль',icon:I.UserRound},
 ]
 const colors=['#78e6f0','#a78bfa','#fb7185','#fbbf24','#34d399','#60a5fa','#fb923c']
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)
@@ -18,6 +21,8 @@ export default function App(){
   const [state,setState]=useState<PlannerState>(initialState)
   const [profile,setProfile]=useState<UserProfile>(defaultProfile)
   const [ready,setReady]=useState(false)
+  const [sync,setSync]=useState<'saved'|'saving'|'error'>('saved')
+  const [online,setOnline]=useState(navigator.onLine)
   const [view,setView]=useState<View>('dashboard')
   const [projectId,setProjectId]=useState<string>()
   const [capture,setCapture]=useState(false)
@@ -26,9 +31,10 @@ export default function App(){
   const [ai,setAi]=useState(false)
   const [installPrompt,setInstallPrompt]=useState<any>(null)
   useEffect(()=>{api.me().then(r=>setAuth(r.user)).catch(()=>setAuth(null))},[])
-  useEffect(()=>{if(!auth)return;api.bootstrap(initialState).then(r=>{setState(r.state?.projects?.length?r.state:initialState);setProfile(r.profile?.name?r.profile:defaultProfile);setAuth(r.user);setReady(true)}).catch(()=>setReady(true))},[auth?.accountId])
-  useEffect(()=>{if(!ready)return;const t=setTimeout(()=>api.saveState(state).catch(()=>{}),450);return()=>clearTimeout(t)},[state,ready])
+  useEffect(()=>{if(!auth)return;api.bootstrap(initialState).then(r=>{const loaded=r.state?.projects?.length?{...r.state,decisions:r.state.decisions||[]}:initialState;setState(loaded);setProfile(r.profile?.name?r.profile:defaultProfile);setAuth(r.user);setReady(true)}).catch(()=>setReady(true))},[auth?.accountId])
+  useEffect(()=>{if(!ready)return;setSync('saving');const t=setTimeout(()=>api.saveState(state).then(()=>setSync('saved')).catch(()=>setSync('error')),450);return()=>clearTimeout(t)},[state,ready])
   useEffect(()=>{const handler=(e:Event)=>{e.preventDefault();setInstallPrompt(e)};window.addEventListener('beforeinstallprompt',handler);return()=>window.removeEventListener('beforeinstallprompt',handler)},[])
+  useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);window.addEventListener('online',on);window.addEventListener('offline',off);return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off)}},[])
   if(auth===undefined)return <Splash/>
   if(!auth)return <AuthScreen onDone={()=>api.me().then(r=>setAuth(r.user))}/>
   if(!ready)return <Splash/>
@@ -37,13 +43,14 @@ export default function App(){
   const removeProject=(id:string)=>{if(confirm('Удалить проект и все его данные?')){setState(s=>({...s,projects:s.projects.filter(p=>p.id!==id)}));setProjectId(undefined)}}
   const logout=async()=>{await api.logout();setAuth(null);setReady(false)}
   return <div className="v2-shell">
+    {!online&&<div className="offline-banner"><I.WifiOff size={14}/>Нет сети — изменения сохранятся после восстановления соединения</div>}
     <aside className="v2-side"><Logo/><div className="workspace-pill"><span>{auth.workspaceName.slice(0,1)}</span><div><b>{auth.workspaceName}</b><small>Общее пространство</small></div></div><nav>{nav.map(n=><button className={view===n.id&&!project?'active':''} key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined)}}><n.icon size={18}/>{n.label}</button>)}</nav><div className="mini-projects"><label>ПРОЕКТЫ <button onClick={()=>setProjectEditor(null)}><I.Plus size={14}/></button></label>{state.projects.slice(0,6).map(p=><button key={p.id} onClick={()=>{setView('projects');setProjectId(p.id)}}><i style={{background:p.color}}/>{p.name}</button>)}</div><button className="user-chip" onClick={()=>{setView('settings');setProjectId(undefined)}}><span>{auth.displayName.slice(0,1)}</span><div><b>{auth.displayName}</b><small>@{auth.publicId}</small></div><I.ChevronRight size={14}/></button></aside>
-    <main className="v2-main"><header><div><span>{project?'Проекты':nav.find(n=>n.id===view)?.label}</span>{project&&<><I.ChevronRight size={13}/><b>{project.name}</b></>}</div><div className="header-tools">{installPrompt&&<button className="install" onClick={async()=>{await installPrompt.prompt();setInstallPrompt(null)}}><I.Smartphone size={16}/>Установить</button>}<button onClick={()=>setCapture(true)}><I.Plus size={17}/><span>Добавить</span></button></div></header>
+    <main className="v2-main"><header><div><span>{project?'Проекты':nav.find(n=>n.id===view)?.label}</span>{project&&<><I.ChevronRight size={13}/><b>{project.name}</b></>}</div><div className="header-tools"><div className={`sync-state ${sync}`}>{sync==='saving'?<I.LoaderCircle size={13}/>:sync==='error'?<I.CloudOff size={13}/>:<I.CloudCheck size={13}/>}<span>{sync==='saving'?'Сохраняем':sync==='error'?'Нет связи':'Сохранено'}</span></div>{installPrompt&&<button className="install" onClick={async()=>{await installPrompt.prompt();setInstallPrompt(null)}}><I.Smartphone size={16}/>Установить</button>}<button onClick={()=>setCapture(true)}><I.Plus size={17}/><span>Добавить</span></button></div></header>
       <div className="v2-content"><AnimatePresence mode="wait"><motion.div key={project?.id||view} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}}>
-        {project?<ProjectPage2 project={project} save={saveProject} edit={()=>setProjectEditor(project)} remove={()=>removeProject(project.id)} editTask={(task)=>setTaskEditor({projectId:project.id,task})} addTask={()=>setTaskEditor({projectId:project.id})}/>:view==='dashboard'?<Dashboard state={state} setState={setState} add={()=>setCapture(true)} open={id=>{setView('projects');setProjectId(id)}}/>:view==='projects'?<Projects state={state} open={setProjectId} add={()=>setProjectEditor(null)}/>:view==='calendar'?<Calendar state={state}/>:view==='ideas'?<Ideas state={state} setState={setState}/>:view==='team'?<Team/>:<Profile profile={profile} setProfile={setProfile} auth={auth} logout={logout}/>} 
+        {project?<ProjectPage2 project={project} save={saveProject} edit={()=>setProjectEditor(project)} remove={()=>removeProject(project.id)} editTask={(task)=>setTaskEditor({projectId:project.id,task})} addTask={()=>setTaskEditor({projectId:project.id})}/>:view==='dashboard'?<Dashboard state={state} setState={setState} add={()=>setCapture(true)} open={id=>{setView('projects');setProjectId(id)}}/>:view==='decisions'?<Decisions items={state.decisions} userId={auth.publicId} onChange={decisions=>setState(s=>({...s,decisions}))}/>:view==='projects'?<Projects state={state} open={setProjectId} add={()=>setProjectEditor(null)}/>:view==='calendar'?<Calendar state={state}/>:view==='ideas'?<Ideas state={state} setState={setState}/>:view==='team'?<Team/>:<ProfileBridge auth={auth} setAuth={setAuth}><Profile profile={profile} setProfile={setProfile} auth={auth} logout={logout}/></ProfileBridge>}
       </motion.div></AnimatePresence></div>
     </main>
-    <nav className="bottom-nav">{nav.slice(0,5).map(n=><button className={view===n.id&&!project?'active':''} key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined)}}><n.icon size={20}/><span>{n.label}</span></button>)}</nav>
+    <nav className="bottom-nav">{nav.filter(n=>['dashboard','decisions','projects','team','settings'].includes(n.id)).map(n=><button className={view===n.id&&!project?'active':''} key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined)}}><n.icon size={20}/><span>{n.label}</span></button>)}</nav>
     <button className="ai-button" onClick={()=>setAi(true)}><I.Sparkles size={18}/><span>Founder AI</span></button>
     <AnimatePresence>{ai&&<AiPanel context={project?.name||auth.workspaceName} close={()=>setAi(false)}/>}</AnimatePresence>
     {capture&&<CaptureModal projects={state.projects} close={()=>setCapture(false)} save={(pid,type,data)=>{setState(s=>({...s,projects:s.projects.map(p=>p.id!==pid?p:type==='task'?{...p,tasks:[...p.tasks,data as Task]}:{...p,[type]:[data,...p[type]]})}));setCapture(false)}}/>}

@@ -20,6 +20,7 @@ const entry = (id: string, title: string, body?: string) => ({ id, title, body, 
 
 export const initialState: PlannerState = {
   focus: 'Подготовить первый рабочий релиз Founder OS',
+  decisions: [],
   projects: [
     { id:'company', name:'Company', icon:'Building2', color:'#a78bfa', description:'Стратегия, процессы и рост компании', progress:82,
       tasks:[task('c1','Сформировать план на неделю','In Progress','High',0,['strategy']),task('c2','Проверить ключевые метрики','Todo','High',1,['metrics']),task('c3','Обновить карту рисков','Backlog','Medium',4)],

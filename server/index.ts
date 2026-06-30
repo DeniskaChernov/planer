@@ -11,6 +11,7 @@ import { hasDatabase, initDatabase, pool } from './db.js'
 import { founderInstructions } from './prompt.js'
 
 const app = express()
+app.set('trust proxy',1)
 const port = Number(process.env.PORT || 3000)
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const dist = join(__dirname, '..', 'dist')
@@ -64,7 +65,7 @@ app.post('/api/auth/register',authLimiter,async(req,res,next)=>{try{
     await client.query(`INSERT INTO users(id,profile,planner_state) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING`,[account.rows[0].id,JSON.stringify(profile),JSON.stringify(req.body.state||{})])
     await client.query('COMMIT');await createSession(res,account.rows[0].id);res.json({ok:true})
   }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
-}catch(e){if(e instanceof Error&&['ID уже занят','Код пространства не найден'].includes(e.message))return res.status(400).json({error:e.message});next(e)}})
+}catch(e){if(e instanceof Error&&['ID уже занят','Код пространства не найден'].includes(e.message))return res.status(400).json({error:e.message});if((e as {code?:string}).code==='23505')return res.status(400).json({error:'Этот Planner ID или Finance ID уже используется'});next(e)}})
 app.post('/api/auth/login',authLimiter,async(req,res,next)=>{try{
   if(!pool)return res.status(503).json({error:'База данных не подключена'})
   const result=await pool.query(`SELECT id,pin_hash FROM planner_accounts WHERE public_id=$1`,[normalizeId(req.body.publicId)])
@@ -76,6 +77,7 @@ app.post('/api/auth/logout',async(req,res,next)=>{try{const token=req.cookies?.[
 app.post('/api/bootstrap',async(req,res,next)=>{try{const user=await requireUser(req,res);if(!user)return;const data=await pool!.query(`SELECT planner_state FROM planner_workspaces WHERE id=$1`,[user.workspaceId]);res.json({profile:user.profile,state:data.rows[0]?.planner_state||req.body.state||{},persistence:'postgres',user})}catch(e){next(e)}})
 app.put('/api/state',async(req,res,next)=>{try{const user=await requireUser(req,res);if(!user)return;await pool!.query(`UPDATE planner_workspaces SET planner_state=$2,updated_at=NOW() WHERE id=$1`,[user.workspaceId,JSON.stringify(req.body)]);res.json({ok:true,persistence:'postgres'})}catch(e){next(e)}})
 app.put('/api/profile',async(req,res,next)=>{try{const user=await requireUser(req,res);if(!user)return;await pool!.query(`UPDATE planner_accounts SET profile=$2,display_name=$3,updated_at=NOW() WHERE id=$1`,[user.accountId,JSON.stringify(req.body),req.body.name||user.displayName]);await pool!.query(`UPDATE users SET profile=$2,updated_at=NOW() WHERE id=$1`,[user.accountId,JSON.stringify(req.body)]);res.json({ok:true})}catch(e){next(e)}})
+app.put('/api/account',async(req,res,next)=>{try{const user=await requireUser(req,res);if(!user)return;const externalUserId=String(req.body.externalUserId||'').trim()||null;await pool!.query(`UPDATE planner_accounts SET external_user_id=$2,updated_at=NOW() WHERE id=$1`,[user.accountId,externalUserId]);res.json({ok:true,externalUserId})}catch(e){if((e as {code?:string}).code==='23505')return res.status(400).json({error:'Этот Finance ID уже привязан к другому аккаунту'});next(e)}})
 app.get('/api/workspace',async(req,res,next)=>{try{const user=await requireUser(req,res);if(!user)return;const members=await pool!.query(`SELECT a.public_id,a.display_name,a.external_user_id,m.role FROM planner_memberships m JOIN planner_accounts a ON a.id=m.account_id WHERE m.workspace_id=$1 ORDER BY m.created_at`,[user.workspaceId]);res.json({id:user.workspaceId,name:user.workspaceName,inviteCode:user.inviteCode,role:user.role,members:members.rows})}catch(e){next(e)}})
 
 app.post('/api/ai/chat',async(req,res,next)=>{try{

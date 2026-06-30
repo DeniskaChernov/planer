@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'projects' | 'calendar' | 'ideas' | 'team' | 'settings'
+export type View = 'dashboard' | 'decisions' | 'projects' | 'calendar' | 'ideas' | 'team' | 'settings'
 export type TaskStatus = 'Backlog' | 'Todo' | 'In Progress' | 'Done'
 
 export interface Task {
@@ -30,6 +30,19 @@ export interface Project {
 export interface PlannerState {
   focus: string
   projects: Project[]
+  decisions: Decision[]
+}
+
+export interface Decision {
+  id: string
+  title: string
+  rationale: string
+  expectedOutcome: string
+  confidence: number
+  reviewDate?: string
+  status: 'captured'|'committed'|'under_review'|'validated'|'reversed'
+  createdAt: string
+  createdBy?: string
 }
 
 export interface UserProfile {

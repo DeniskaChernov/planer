@@ -64,6 +64,7 @@ export async function initDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS planner_sessions_expiry_idx ON planner_sessions(expires_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS planner_accounts_external_user_unique ON planner_accounts(external_user_id) WHERE external_user_id IS NOT NULL AND external_user_id <> '';
     CREATE INDEX IF NOT EXISTS messages_conversation_created_idx ON messages(conversation_id, created_at);
   `)
 }
