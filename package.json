@@ -13,10 +13,13 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "bcryptjs": "latest",
+    "cookie-parser": "latest",
     "dotenv": "latest",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "express": "latest",
+    "express-rate-limit": "latest",
     "openai": "latest",
     "pg": "latest",
     "vite": "latest",
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@types/express": "latest",
+    "@types/cookie-parser": "latest",
     "@types/node": "latest",
     "@types/pg": "latest",
     "@types/react": "latest",

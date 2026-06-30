@@ -17,6 +17,37 @@ export async function initDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS planner_accounts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      public_id TEXT UNIQUE NOT NULL,
+      display_name TEXT NOT NULL,
+      pin_hash TEXT NOT NULL,
+      external_user_id TEXT,
+      profile JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS planner_workspaces (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      invite_code TEXT UNIQUE NOT NULL,
+      planner_state JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS planner_memberships (
+      account_id UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
+      workspace_id UUID NOT NULL REFERENCES planner_workspaces(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY(account_id, workspace_id)
+    );
+    CREATE TABLE IF NOT EXISTS planner_sessions (
+      token_hash TEXT PRIMARY KEY,
+      account_id UUID NOT NULL REFERENCES planner_accounts(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS conversations (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -32,17 +63,7 @@ export async function initDatabase() {
       content TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE INDEX IF NOT EXISTS planner_sessions_expiry_idx ON planner_sessions(expires_at);
     CREATE INDEX IF NOT EXISTS messages_conversation_created_idx ON messages(conversation_id, created_at);
   `)
-}
-
-export async function ensureUser(id: string, profile: unknown, plannerState: unknown) {
-  if (!pool) return { profile, planner_state: plannerState }
-  const result = await pool.query(
-    `INSERT INTO users (id, profile, planner_state) VALUES ($1, $2, $3)
-     ON CONFLICT (id) DO UPDATE SET updated_at = NOW()
-     RETURNING profile, planner_state`,
-    [id, JSON.stringify(profile), JSON.stringify(plannerState)],
-  )
-  return result.rows[0]
 }
