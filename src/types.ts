@@ -39,6 +39,9 @@ export interface PlannerState {
 }
 
 export interface ActivityItem { id:string; action:string; entity_type?:string; entity_id?:string; metadata:{title?:string}; created_at:string; display_name?:string; public_id?:string }
+export interface AIConversation { id:string; context:string; title:string; preview?:string; created_at:string; updated_at:string }
+export interface AIMessage { id:string; role:'user'|'assistant'; content:string; created_at:string }
+export interface FinanceStatus { linked:boolean; externalUserId?:string; mode:'identity'|'live'; serviceConfigured:boolean; message:string }
 
 export interface Decision {
   id: string
