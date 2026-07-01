@@ -19,7 +19,9 @@ export const api={
   saveAccount:(externalUserId:string)=>request<{ok:true;externalUserId?:string}>('/api/account',{method:'PUT',body:JSON.stringify({externalUserId})}),
   workspace:()=>request<WorkspaceInfo>('/api/workspace'),
   createInvite:(data:{label:string;permissions:AccessPermissions;projectIds:string[]})=>request<{invite:WorkspaceInfo['invites'][number]}>('/api/workspace/invites',{method:'POST',body:JSON.stringify(data)}),
+  revokeInvite:(inviteId:string)=>request<{ok:true}>(`/api/workspace/invites/${inviteId}`,{method:'DELETE'}),
   updateMember:(accountId:string,data:{permissions:AccessPermissions;projectIds:string[]})=>request(`/api/workspace/members/${accountId}`,{method:'PUT',body:JSON.stringify(data)}),
+  removeMember:(accountId:string)=>request<{ok:true}>(`/api/workspace/members/${accountId}`,{method:'DELETE'}),
   activity:()=>request<{items:ActivityItem[]}>('/api/activity'),
   chat:(payload:{message:string;context:string;conversationId?:string})=>request<{answer:string;conversationId:string}>('/api/ai/chat',{method:'POST',body:JSON.stringify(payload)}),
 }
