@@ -9,6 +9,7 @@ import Decisions from './Decisions'
 import TeamAccess from './TeamAccess'
 import './v2.css'
 import './strategy.css'
+import './comfort.css'
 
 const nav:{id:View;label:string;icon:React.ComponentType<{size?:number}>}[]=[
   {id:'dashboard',label:'Сегодня',icon:I.LayoutDashboard},{id:'decisions',label:'Решения',icon:I.BrainCircuit},{id:'projects',label:'Проекты',icon:I.Layers3},{id:'calendar',label:'Календарь',icon:I.CalendarDays},{id:'ideas',label:'Идеи',icon:I.Lightbulb},{id:'team',label:'Люди',icon:I.Users},{id:'settings',label:'Профиль',icon:I.UserRound},
@@ -33,6 +34,7 @@ export default function App(){
   const [projectEditor,setProjectEditor]=useState<Project|null|undefined>()
   const [taskEditor,setTaskEditor]=useState<{projectId:string;task?:Task}|null>(null)
   const [ai,setAi]=useState(false)
+  const [mobileMore,setMobileMore]=useState(false)
   const [installPrompt,setInstallPrompt]=useState<any>(null)
   const [updateReady,setUpdateReady]=useState<ServiceWorkerRegistration>()
   useEffect(()=>{api.me().then(r=>setAuth(r.user)).catch(()=>setAuth(null))},[])
@@ -59,9 +61,10 @@ export default function App(){
         {project?<ProjectPage2 project={project} save={saveProject} edit={()=>canManageProjects&&setProjectEditor(project)} remove={()=>canManageProjects&&removeProject(project.id)} editTask={(task)=>canManageTasks&&setTaskEditor({projectId:project.id,task})} addTask={()=>canManageTasks&&setTaskEditor({projectId:project.id})}/>:view==='dashboard'&&state.projects.length===0?<EmptyWorkspace owner={isOwner} createProject={()=>setProjectEditor(null)} invite={()=>setView('team')}/>:view==='dashboard'?<Dashboard state={state} setState={setState} add={()=>setCapture(true)} open={id=>{setView('projects');setProjectId(id)}}/>:view==='decisions'?<Decisions items={state.decisions} projects={state.projects} userId={auth.publicId} onChange={decisions=>setState(s=>({...s,decisions}))}/>:view==='projects'?<Projects state={state} open={setProjectId} add={()=>canManageProjects&&setProjectEditor(null)}/>:view==='calendar'?<Calendar state={state}/>:view==='ideas'?<Ideas state={state} setState={setState}/>:view==='team'?<TeamAccess/>:<ProfileBridge auth={auth} setAuth={setAuth}><Profile profile={profile} setProfile={setProfile} auth={auth} logout={logout}/></ProfileBridge>}
       </motion.div></AnimatePresence></div>
     </main>
-    <nav className="bottom-nav">{visibleNav.filter(n=>['dashboard','decisions','projects','team','settings'].includes(n.id)).map(n=><button className={view===n.id&&!project?'active':''} key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined)}}><n.icon size={20}/><span>{n.label}</span></button>)}</nav>
+    <nav className="bottom-nav">{visibleNav.filter(n=>['dashboard','decisions','projects','ideas'].includes(n.id)).map(n=><button className={view===n.id&&!project?'active':''} key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined)}}><n.icon size={20}/><span>{n.label}</span></button>)}<button className={['calendar','team','settings'].includes(view)?'active':''} onClick={()=>setMobileMore(true)}><I.Menu size={20}/><span>Ещё</span></button></nav>
     {(canManageProjects||canManageTasks)&&state.projects.length>0&&<button className="mobile-capture" onClick={()=>setCapture(true)}><I.Plus/><span>Добавить</span></button>}
     {canUseAI&&<button className="ai-button" onClick={()=>setAi(true)}><I.Sparkles size={18}/><span>Founder AI</span></button>}
+    <AnimatePresence>{mobileMore&&<motion.div className="mobile-more-wrap" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onMouseDown={e=>e.target===e.currentTarget&&setMobileMore(false)}><motion.section initial={{y:40}} animate={{y:0}} exit={{y:40}}><header><div><small>{auth.workspaceName}</small><b>Навигация</b></div><button onClick={()=>setMobileMore(false)}><I.X/></button></header><nav>{visibleNav.filter(n=>['calendar','team','settings'].includes(n.id)).map(n=><button key={n.id} onClick={()=>{setView(n.id);setProjectId(undefined);setMobileMore(false)}}><span><n.icon/></span><div><b>{n.label}</b><small>{n.id==='calendar'?'Сроки и обязательства':n.id==='team'?'Участники и права доступа':'Профиль и персональный контекст'}</small></div><I.ChevronRight/></button>)}</nav>{installPrompt&&<button className="more-install" onClick={async()=>{await installPrompt.prompt();setInstallPrompt(null);setMobileMore(false)}}><I.Smartphone/>Установить Founder OS</button>}</motion.section></motion.div>}</AnimatePresence>
     <AnimatePresence>{ai&&<AiPanel context={project?.name||auth.workspaceName} close={()=>setAi(false)}/>}</AnimatePresence>
     {capture&&<CaptureModal projects={state.projects} close={()=>setCapture(false)} save={(pid,type,data)=>{setState(s=>({...s,projects:s.projects.map(p=>p.id!==pid?p:type==='task'?{...p,tasks:[...p.tasks,data as Task]}:{...p,[type]:[data,...p[type]]})}));setCapture(false)}}/>}
     {projectEditor!==undefined&&<ProjectModal project={projectEditor||undefined} close={()=>setProjectEditor(undefined)} save={p=>{saveProject(p);setProjectEditor(undefined);setProjectId(p.id);setView('projects')}}/>}
